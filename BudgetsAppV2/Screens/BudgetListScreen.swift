@@ -14,16 +14,39 @@ struct BudgetListScreen: View {
     @FetchRequest(sortDescriptors: []) private var budgets: FetchedResults<Budget>
     @State private var isPresentingFilter: Bool = false
     
+    private var total: Double {
+        budgets.reduce(0) { limit, budget in
+            budget.limit + limit
+        }
+    }
+    
     var body: some View {
         VStack {
-            List(budgets) { budget in
-                NavigationLink {
-                    BudgetDetailScreen(budget: budget)
-                } label: {
-                    BudgetCellView(budget: budget)
-                }
+            
+            if budgets.isEmpty {
+                ContentUnavailableView("No budgets avaiable", systemImage: "xmark")
+            } else {
+            
+                List {
+                    HStack {
+                        Spacer()
+                        Text("Total Limit")
+                        Text(total, format: .currency(code: Locale.currencyCode))
+                        Spacer()
+                    }.font(.headline)
+                    
+                    ForEach(budgets) { budget in
+                        NavigationLink {
+                            BudgetDetailScreen(budget: budget)
+                        } label: {
+                            BudgetCellView(budget: budget)
+                        }
 
+                    }
+                }
+                
             }
+            
         }.navigationTitle("Budget App")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

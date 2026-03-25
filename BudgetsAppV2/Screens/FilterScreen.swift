@@ -24,65 +24,11 @@ struct FilterScreen: View {
     @State private var endDate: Date = Date()
     @State private var selectedSortOption: SortOptions? = nil
     @State private var selectedSortDirection: SortDirection = .asc
+    @State private var selectedFilterOption: FilterOption? = nil
     
-    private func filterTags() {
-        
-        if selectedTags.isEmpty {
-            return
-        }
-        
-        let selectedTagNames = selectedTags.map { $0.name }
-        let request = Expense.fetchRequest()
-        request.predicate = NSPredicate(format: "ANY tags.name IN %@", selectedTagNames)
-        
-        do {
-            filteredExpenses = try context.fetch(request)
-        } catch {
-            print(error)
-        }
-    }
-    
-    private func filterByPrice() {
-        
-        guard let startPrice = startPrice,
-              let endPrice = endPrice else { return }
-        
-        let request = Expense.fetchRequest()
-        request.predicate = NSPredicate(format: "amount >= %@ AND amount <= %@", NSNumber(value: startPrice), NSNumber(value: endPrice))
-        
-        do {
-            try filteredExpenses = context.fetch(request)
-        } catch {
-            print(error)
-        }
-    }
-    
-    private func filterByTitle() {
-        
-        let request = Expense.fetchRequest()
-        request.predicate = NSPredicate(format: "title BEGINSWITH %@", title)
-        
-        do {
-            try filteredExpenses = context.fetch(request)
-        } catch {
-            print(error)
-        }
-    }
-    
-    private func filterByDate() {
-        let request = Expense.fetchRequest()
-        request.predicate = NSPredicate(format: "dateCreated >= %@ AND dateCreated <= %@", startDate as NSDate, endDate as NSDate)
-        
-        do {
-            try filteredExpenses = context.fetch(request)
-        } catch {
-            print(error)
-        }
-    }
-    
-    private enum SortOptions: CaseIterable, Identifiable {
-        case title
-        case date
+    private enum SortOptions: String, CaseIterable, Identifiable {
+        case title = "title"
+        case date = "dateCreated"
         
         var id: SortOptions {
             return self
@@ -98,12 +44,7 @@ struct FilterScreen: View {
         }
         
         var key: String {
-            switch self {
-            case .title:
-                return "title"
-            case .date:
-                return "dateCreated"
-            }
+            rawValue
         }
     }
     
@@ -125,12 +66,62 @@ struct FilterScreen: View {
         }
     }
     
+    private enum FilterOption: Identifiable, Equatable {
+        case none
+        case byTags(Set<Tag>)
+        case byPriceRange(minPrice: Double, maxPrice: Double)
+        case byTitle(String)
+        case byDate(startDate: Date, endDate: Date)
+        
+        var id: String {
+            switch self {
+            case .none:
+                return "none"
+            case .byTags:
+                return "tags"
+            case .byPriceRange:
+                return "priceRange"
+            case .byTitle:
+                return "title"
+            case .byDate:
+                return "date"
+            }
+        }
+    }
+    
     private func performSort() {
         
         guard let sortOptiion = selectedSortOption else { return }
         
         let request = Expense.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(key: sortOptiion.key, ascending: selectedSortDirection == .asc ? true : false)]
+        
+        do {
+            filteredExpenses = try context.fetch(request)
+        } catch {
+            print(error)
+        }
+    }
+    
+    private func performFilter() {
+        
+        guard let selectedFilterOption = selectedFilterOption else { return }
+        
+        let request = Expense.fetchRequest()
+        
+        switch selectedFilterOption {
+            case .none:
+                request.predicate = NSPredicate(value: true)
+            case .byTags(let tags):
+                let tagNames = tags.map { $0.name }
+                request.predicate = NSPredicate(format: "ANY tags.name IN %@", tagNames)
+            case .byDate(let startDate, let endDate):
+                request.predicate = NSPredicate(format: "dateCreated >= %@ AND dateCreated <= %@", startDate as NSDate, endDate as NSDate)
+            case .byTitle(let title):
+                request.predicate = NSPredicate(format: "title BEGINSWITH %@", title)
+            case .byPriceRange(let minPrice, let maxPrice):
+                request.predicate = NSPredicate(format: "amount >= %@ AND amount <= %@", NSNumber(value: minPrice), NSNumber(value: maxPrice))
+        }
         
         do {
             filteredExpenses = try context.fetch(request)
@@ -165,21 +156,26 @@ struct FilterScreen: View {
             
             Section("Filter by tags") {
                 TagsView(selectedTags: $selectedTags)
-                    .onChange(of: selectedTags, filterTags)
+                    .onChange(of: selectedTags, {
+                        selectedFilterOption = .byTags(selectedTags)
+                    })
             }
             
             Section("Filter by price") {
                 TextField("Start price", value: $startPrice, format: .number)
                 TextField("End price", value: $endPrice, format: .number)
                 Button("Search") {
-                    filterByPrice()
+                    guard let startPrice = startPrice,
+                          let endPrice = endPrice else { return }
+                    
+                    selectedFilterOption = .byPriceRange(minPrice: startPrice, maxPrice: endPrice)
                 }
             }
             
             Section("Filter by title") {
                 TextField("Title", text: $title)
                 Button("Search") {
-                    filterByTitle()
+                    selectedFilterOption = .byTitle(title)
                 }
             }
             
@@ -187,7 +183,9 @@ struct FilterScreen: View {
                 DatePicker("Start date", selection: $startDate, displayedComponents: .date)
                 DatePicker("End date", selection: $endDate, displayedComponents: .date)
                 Button("Search") {
-                    filterByDate()
+                    
+                    
+                    selectedFilterOption = .byDate(startDate: startDate, endDate: endDate)
                 }
             }
             
@@ -200,14 +198,14 @@ struct FilterScreen: View {
             HStack {
                 Spacer()
                 Button("Show all") {
-                    selectedTags = []
-                    filteredExpenses = expenses.map { $0 }
+                    selectedFilterOption = FilterOption.none
                 }
                 Spacer()
             }
             
         }.padding()
             .navigationTitle("Filter")
+            .onChange(of: selectedFilterOption, performFilter)
     }
 }
 

@@ -25,4 +25,17 @@ extension Budget {
         
     }
     
+    var spent: Double {
+        
+        guard let expenses = expenses as? Set<Expense> else { return 0 }
+        
+        return expenses.reduce(0) { partialResult, expense in
+            partialResult + expense.amount
+        }
+    }
+    
+    var remaining: Double {
+        limit - spent
+    }
+    
 }
