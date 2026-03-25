@@ -26,15 +26,17 @@ struct BudgetDetailScreen: View {
     @State private var title: String = ""
     @State private var amount: Double?
     @State private var selectedTags: Set<Tag> = []
+    @State private var quantity: Int?
     
     private var isFormValid: Bool {
-        !title.isEmptyOrWhitespace && amount != nil && Double(amount!) > 0 && !selectedTags.isEmpty
+        !title.isEmptyOrWhitespace && amount != nil && Double(amount!) > 0 && quantity != nil && Int(quantity!) > 0 && !selectedTags.isEmpty
     }
     
     private func addExpense() {
         let expense = Expense(context: context)
         expense.title = title
         expense.amount = amount ?? 0
+        expense.quantity = Int16(quantity ?? 0)
         expense.dateCreated = Date()
         
         budget.addToExpenses(expense)
@@ -77,6 +79,8 @@ struct BudgetDetailScreen: View {
                 TextField("Title", text: $title)
                 
                 TextField("Amount", value: $amount, format: .currency(code: Locale.currencyCode))
+                
+                TextField("Quantity", value: $quantity, format: .number)
                 
                 TagsView(selectedTags: $selectedTags)
                 

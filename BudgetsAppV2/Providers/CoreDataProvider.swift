@@ -34,6 +34,7 @@ class CoreDataProvider {
             let exp = Expense(context: context)
             exp.title = expensesNames[index]
             exp.amount = Double(index + 1) * 3.50
+            exp.quantity = Int16.random(in: 1...5)
             exp.dateCreated = Date()
             
             cat.addToExpenses(exp)

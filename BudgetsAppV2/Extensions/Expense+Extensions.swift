@@ -14,5 +14,8 @@ extension Expense {
         let set = tags as? Set<Tag> ?? []
         return set.sorted { ($0.name ?? "") < ($1.name ?? "") }
     }
-    
+ 
+    var total: Double {
+        amount * Double(quantity)
+    }
 }
